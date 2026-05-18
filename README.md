@@ -15,6 +15,14 @@
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT"/>
 </p>
 
+<p align="center">
+  <a href="https://github.com/elgamlwork/BuildBar/releases/latest"><strong>↓ Download the latest release</strong></a>
+  &middot;
+  <a href="#install"><strong>Install options</strong></a>
+  &middot;
+  <a href="#first-launch-gatekeeper"><strong>First launch</strong></a>
+</p>
+
 ---
 
 ## Why BuildBar
@@ -106,27 +114,57 @@ Workflow run monitoring via the `gh` CLI.
 
 ---
 
-## Quick Start
+## Install
+
+Pick whichever you prefer — all three install the same universal (Apple Silicon + Intel) build.
+
+### DMG (recommended)
+
+1. Download `BuildBar-x.y.z.dmg` from the [latest release](https://github.com/elgamlwork/BuildBar/releases/latest).
+2. Open the DMG and drag **BuildBar** to the **Applications** shortcut.
+3. See [First launch](#first-launch-gatekeeper) below — macOS will block the first open.
+
+### .pkg installer
+
+1. Download `BuildBar-x.y.z.pkg` from the [latest release](https://github.com/elgamlwork/BuildBar/releases/latest).
+2. Double-click and follow the installer — it puts `BuildBar.app` in `/Applications`.
+3. See [First launch](#first-launch-gatekeeper) below — macOS still gates unsigned `.pkg` installs the first time.
+
+### Homebrew
+
+A personal tap is the simplest distribution path until the app is notarized:
 
 ```bash
-git clone https://github.com/YOUR_USER/BuildBar.git
+brew tap elgamlwork/buildbar
+brew install --cask buildbar
+```
+
+> **Maintainer note:** the cask formula lives at [`Casks/buildbar.rb`](Casks/buildbar.rb). To wire up the tap, create a public repo named **`homebrew-buildbar`** under `elgamlwork/`, copy that file in, and push. Users will then be able to `brew install --cask buildbar`. Each release, bump the `version` in the formula — `livecheck` will keep `brew upgrade` working.
+
+### From source
+
+```bash
+git clone https://github.com/elgamlwork/BuildBar.git
 cd BuildBar
 ./run.sh             # debug build, wraps in .app, launches
 ./run.sh release     # release (optimized) build
 ```
 
-A hammer icon appears in your menu bar. Click it, switch between tabs, and add your projects / token / repos.
-
 > **Why `run.sh` instead of `swift run`?** macOS notifications and Launch at Login require a real `.app` bundle with a bundle identifier. `swift run` launches the raw binary from `.build/debug/` — no bundle, no notifications. `run.sh` builds the binary, wraps it in a proper `BuildBar.app` with icons and `Info.plist`, and `open`s it.
 
-### Install permanently
+---
 
-```bash
-./run.sh release
-mv BuildBar.app /Applications/
-open /Applications/BuildBar.app
-# Click the gear icon → "Launch at login"
-```
+## First launch (Gatekeeper)
+
+BuildBar releases are **not code-signed or notarized** (no Apple Developer ID yet). The first time you open the app, macOS will say something like *"BuildBar can't be opened because Apple cannot check it for malicious software"*. This is expected — bypass it once and you'll never see it again:
+
+1. Open **Finder → Applications**.
+2. **Right-click** (or Control-click) **BuildBar** and choose **Open**.
+3. In the dialog, click **Open**.
+
+You only do this once. After the first launch, double-clicking works normally.
+
+A hammer icon appears in your menu bar. Click it, switch between tabs, and add your projects / token / repos. Open the gear menu and toggle **Launch at login** to start BuildBar automatically on reboot.
 
 ---
 
@@ -153,42 +191,54 @@ Each tab runs an independent polling loop. Pollers sleep when paused. The EAS po
 
 ---
 
-## Distribution
+## Maintainer: cutting a release
 
-The `run.sh`-generated `.app` is unsigned and will be blocked by Gatekeeper on other Macs ("damaged" or "cannot be opened"). To share with teammates:
-
-### Sign with Developer ID
+Releases are automated by [`.github/workflows/release.yml`](.github/workflows/release.yml). Pushing a `v*` tag builds a universal `.app`, packages it as both `.dmg` and `.pkg`, and publishes a GitHub Release with checksums:
 
 ```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+To build artifacts locally:
+
+```bash
+./create-dmg.sh           # Uses latest git tag as version
+./create-dmg.sh 0.2.0     # Or specify a version
+# Produces: BuildBar-0.2.0.dmg + BuildBar-0.2.0.pkg
+```
+
+The DMG includes a drag-to-install shortcut to `/Applications`. The `.pkg` installs `BuildBar.app` to `/Applications` directly.
+
+### Sign and Notarize (optional)
+
+Skipping this is fine — users get the first-launch warning described above. To remove that warning entirely you need an Apple Developer ID ($99/yr):
+
+```bash
+# Build the .app
 ./run.sh release
 
-# Find your identity
+# Sign the .app with your Developer ID
 security find-identity -v -p codesigning
-
-# Sign with hardened runtime (required for notarization)
 codesign --force --deep --options runtime --timestamp \
   --sign "Developer ID Application: Your Name (TEAMID)" \
   BuildBar.app
-```
 
-### Notarize
+# Package signed .app as DMG (--no-build skips rebuilding)
+./create-dmg.sh --no-build 0.1.0
 
-```bash
-ditto -c -k --keepParent BuildBar.app BuildBar.zip
-
+# Notarize the DMG
 xcrun notarytool store-credentials "BuildBar-Notary" \
   --apple-id "you@example.com" \
   --team-id "TEAMID" \
   --password "abcd-efgh-ijkl-mnop"
 
-xcrun notarytool submit BuildBar.zip \
+xcrun notarytool submit BuildBar-0.1.0.dmg \
   --keychain-profile "BuildBar-Notary" \
   --wait
 
-xcrun stapler staple BuildBar.app
+xcrun stapler staple BuildBar-0.1.0.dmg
 ```
-
-After stapling, re-zip and share. Teammates can drag to `/Applications` with no Gatekeeper warnings.
 
 ---
 
