@@ -8,18 +8,19 @@ struct VercelTab: View {
     private var filtered: [VercelDeployment] {
         guard !searchText.isEmpty else { return watcher.deployments }
         let s = searchText.lowercased()
-        return watcher.deployments.filter { d in
-            let haystack = [
-                d.name ?? "",
-                d.url ?? "",
-                d.target ?? "",
-                d.state,
-                d.meta?.githubCommitRef ?? "",
-                d.meta?.githubCommitMessage ?? "",
-                d.creator?.username ?? ""
-            ].joined(separator: " ").lowercased()
-            return haystack.contains(s)
-        }
+        return watcher.deployments.filter { searchableText(for: $0).contains(s) }
+    }
+
+    private func searchableText(for d: VercelDeployment) -> String {
+        [
+            d.name ?? "",
+            d.url ?? "",
+            d.target ?? "",
+            d.state,
+            d.meta?.githubCommitRef ?? "",
+            d.meta?.githubCommitMessage ?? "",
+            d.creator?.username ?? ""
+        ].joined(separator: " ").lowercased()
     }
 
     var body: some View {

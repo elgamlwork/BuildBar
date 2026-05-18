@@ -651,6 +651,7 @@ struct ProjectRow: View {
         }
     }
 
+    @MainActor
     private func renamePrompt() {
         let alert = NSAlert()
         alert.messageText = "Rename project"

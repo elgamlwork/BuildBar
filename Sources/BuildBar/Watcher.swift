@@ -251,7 +251,7 @@ final class BuildWatcher: ObservableObject {
         let needTicker = builds.contains { $0.build.isInFlight }
         if needTicker && tickTimer == nil {
             tickTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-                Task { @MainActor in self?.tick = Date() }
+                MainActor.assumeIsolated { [weak self] in self?.tick = Date() }
             }
         } else if !needTicker && tickTimer != nil {
             tickTimer?.invalidate()
