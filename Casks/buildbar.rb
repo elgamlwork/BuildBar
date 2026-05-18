@@ -1,5 +1,5 @@
 cask "buildbar" do
-  version "0.1.0"
+  version "0.1.1"
   sha256 :no_check
 
   url "https://github.com/elgamlwork/BuildBar/releases/download/v#{version}/BuildBar-#{version}.dmg"
