@@ -37,12 +37,16 @@ echo "=== $( [[ "$NO_BUILD" == true ]] && echo "Packaging" || echo "Building" ) 
 # --- Build (unless --no-build) --------------------------------------
 if [[ "$NO_BUILD" == false ]]; then
     echo "-> Building (release)..."
-    swift build -c release --arch arm64 --arch x86_64 2>/dev/null || {
+    if swift build -c release --arch arm64 --arch x86_64 2>/dev/null; then
+        # Universal build succeeded — match arch flags in --show-bin-path.
+        BIN_PATH="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)/${BIN_NAME}"
+        # Xcode build system places universal binaries here instead.
+        [[ -x "$BIN_PATH" ]] || BIN_PATH=".build/apple/Products/Release/${BIN_NAME}"
+    else
         echo "-> Universal build failed, trying single-arch..."
         swift build -c release
-    }
-
-    BIN_PATH="$(swift build -c release --show-bin-path)/${BIN_NAME}"
+        BIN_PATH="$(swift build -c release --show-bin-path)/${BIN_NAME}"
+    fi
     if [[ ! -x "$BIN_PATH" ]]; then
         echo "Build succeeded but binary not found at: ${BIN_PATH}" >&2
         exit 1
