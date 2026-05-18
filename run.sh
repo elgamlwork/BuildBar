@@ -81,5 +81,8 @@ pkill -x "$BIN_NAME" 2>/dev/null || true
 touch "$APP"
 
 echo "-> Launching ${APP}..."
-open "$APP"
+# Launch the binary directly to avoid Launch Services error -600
+# when the .app bundle was just created/replaced.
+"${APP}/Contents/MacOS/${BIN_NAME}" &
+disown
 echo "Done. Look for BuildBar in your menu bar."

@@ -275,7 +275,7 @@ final class GitHubWatcher: ObservableObject {
         let need = runs.contains { $0.run.isInFlight }
         if need && tickTimer == nil {
             tickTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-                Task { @MainActor in self?.tick = Date() }
+                MainActor.assumeIsolated { [weak self] in self?.tick = Date() }
             }
         } else if !need && tickTimer != nil {
             tickTimer?.invalidate()

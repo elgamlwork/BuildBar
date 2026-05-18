@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (without v prefix)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set version
+        id: version
+        run: |
+          if [[ -n "${{ github.event.inputs.version }}" ]]; then
+            echo "value=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build (release, universal)
+        run: |
+          swift build -c release --arch arm64 --arch x86_64
+
+      - name: Create .app bundle, DMG, and .pkg
+        run: |
+          ./create-dmg.sh "${{ steps.version.outputs.value }}"
+
+      - name: Generate checksums
+        run: |
+          V="${{ steps.version.outputs.value }}"
+          shasum -a 256 "BuildBar-${V}.dmg" > "BuildBar-${V}.dmg.sha256"
+          shasum -a 256 "BuildBar-${V}.pkg" > "BuildBar-${V}.pkg.sha256"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "BuildBar v${{ steps.version.outputs.value }}"
+          tag_name: ${{ github.ref_name }}
+          files: |
+            BuildBar-${{ steps.version.outputs.value }}.dmg
+            BuildBar-${{ steps.version.outputs.value }}.dmg.sha256
+            BuildBar-${{ steps.version.outputs.value }}.pkg
+            BuildBar-${{ steps.version.outputs.value }}.pkg.sha256
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
